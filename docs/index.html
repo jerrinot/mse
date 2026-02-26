@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Maven Silent Extension &mdash; Quiet builds for AI agents</title>
+  <title>Maven Silent Extension | Machine-readable Maven output</title>
   <meta name="description" content="A Maven core extension that replaces verbose build output with a dense, machine-readable format. Designed for AI coding agents.">
   <style>
     :root {
@@ -324,6 +324,18 @@
       margin-bottom: 40px;
     }
 
+    .install-note {
+      margin: 28px auto 0;
+      max-width: 640px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
     .install-steps {
       display: flex;
       flex-direction: column;
@@ -428,12 +440,12 @@
   <!-- Hero -->
   <section class="hero">
     <div class="container">
-      <span class="hero-badge">Built for AI coding agents</span>
-      <h1>Silent on success.<br><span class="accent">Precise on failure.</span></h1>
+      <span class="hero-badge">Maven core extension</span>
+      <h1>Machine-readable Maven output.<br><span class="accent">Structured failure details.</span></h1>
       <p>
-        A Maven core extension that replaces thousands of lines of build noise
-        with a dense, machine-readable format &mdash; saving tokens and surfacing
-        what actually matters.
+        A Maven core extension that suppresses most default lifecycle logging
+        when activated and emits compact <code>MSE:</code> lines for build
+        status, test results, and compiler diagnostics.
       </p>
       <div class="hero-actions">
         <a href="#install" class="btn btn-primary">Get started</a>
@@ -458,7 +470,7 @@
               <div class="terminal-dot"></div>
               <div class="terminal-dot"></div>
             </div>
-            <span class="label-before">Standard Maven</span> &mdash; 87 lines
+            <span class="label-before">Standard Maven</span> (excerpt)
           </div>
           <pre><span class="dim">[INFO] Scanning for projects...
 [INFO] --------
@@ -500,7 +512,7 @@
               <div class="terminal-dot"></div>
               <div class="terminal-dot"></div>
             </div>
-            <span class="label-after">With MSE</span> &mdash; 2 lines
+            <span class="label-after">With MSE</span> (success summary example)
           </div>
           <pre>
 <span class="mse">MSE:</span>SESSION_START modules=4 goals=clean,verify
@@ -516,44 +528,38 @@
   <!-- Features -->
   <section class="features" id="features">
     <div class="container">
-      <h2>Why MSE?</h2>
-      <p>Purpose-built to make Maven work with AI agents, not against them.</p>
+      <h2>What MSE does</h2>
+      <p>Behavior summary for Maven 3.6.x to 3.9.x.</p>
       <div class="features-grid">
 
         <div class="feature-card">
           <span class="feature-icon">&gt;_</span>
           <h3>Machine-readable output</h3>
-          <p>Every line prefixed with <code>MSE:</code> using key=value pairs. No ANSI colors, no box-drawing, no formatting art. Built for parsing, not reading.</p>
+          <p>Primary status lines use the <code>MSE:</code> prefix with key=value fields, which makes them easy to parse in tools and scripts.</p>
         </div>
 
         <div class="feature-card">
           <span class="feature-icon">#!</span>
-          <h3>Token-efficient</h3>
-          <p>A passing build emits 2 lines instead of hundreds. Your AI agent keeps its context window for what matters &mdash; understanding and fixing code.</p>
+          <h3>Compact success output</h3>
+          <p>Successful builds emit a compact summary instead of full lifecycle logs. Exact output size depends on the build and enabled outputs.</p>
         </div>
 
         <div class="feature-card">
           <span class="feature-icon">&lt;/&gt;</span>
           <h3>Structured failures</h3>
-          <p>Test failures include class, method, assertion message, and stack trace location. Compiler errors include file path, line, and column. No grep required.</p>
+          <p>Test failures include class, method, message, and stack trace lines. Compiler failures include file path, line, and column when parseable.</p>
         </div>
 
         <div class="feature-card">
           <span class="feature-icon">&#x2699;</span>
-          <h3>Fork-aware</h3>
-          <p>Reads Surefire/Failsafe XML reports directly, so test results are captured accurately regardless of JVM forking configuration.</p>
+          <h3>Surefire/Failsafe reports</h3>
+          <p>Reads Surefire and Failsafe XML reports from module target directories, including runs that fork test JVMs and still write XML results.</p>
         </div>
 
         <div class="feature-card">
           <span class="feature-icon">&#x26A1;</span>
-          <h3>Zero-config activation</h3>
-          <p>Pass <code>-Dmse</code> or set <code>MSE_ACTIVE=true</code>. Without activation the extension is completely inert &mdash; zero overhead.</p>
-        </div>
-
-        <div class="feature-card">
-          <span class="feature-icon">&#x21BB;</span>
-          <h3>Safe fallback</h3>
-          <p>If MSE encounters an internal error, it switches to passthrough mode automatically. Your build never breaks because of the extension.</p>
+          <h3>Activation</h3>
+          <p>Pass <code>-Dmse</code> or set <code>MSE_ACTIVE=true</code>. Without activation, Maven behavior is unchanged.</p>
         </div>
 
       </div>
@@ -565,8 +571,8 @@
   <!-- Install -->
   <section class="install" id="install">
     <div class="container">
-      <h2>Get started in 30 seconds</h2>
-      <p>Works with Java 11+ and Maven 3.6.x &ndash; 3.9.x</p>
+      <h2>Install and run</h2>
+      <p>Works with Java 11+ and Maven 3.6.x to 3.9.x</p>
 
       <div class="install-steps">
 
@@ -598,6 +604,13 @@
         </div>
 
       </div>
+
+      <p class="install-note">
+        Note: This project came out of frustration with Maven logs polluting LLM context during coding sessions.
+        The author does not claim deep Maven internals expertise, and parts were frankly vibe-coded.
+        It appears to work and aims to reduce noise, but treat it as an attempt to mitigate the problem, not a formal guarantee.
+        Use at your own risk, and bug reports are very much appreciated.
+      </p>
     </div>
   </section>
 
