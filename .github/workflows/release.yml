@@ -15,8 +15,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      models: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-java@v4
         with:
@@ -58,3 +61,152 @@ jobs:
 
       - name: Push
         run: git push origin master --tags
+
+      - name: Build release context
+        id: release_context
+        run: |
+          set -euo pipefail
+          TAG="v${{ inputs.version }}"
+          PREV_TAG="$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)"
+          if [ -n "$PREV_TAG" ]; then
+            RANGE="$PREV_TAG..$TAG"
+          else
+            FIRST_COMMIT="$(git rev-list --max-parents=0 "$TAG" | tail -n 1)"
+            RANGE="$FIRST_COMMIT..$TAG"
+          fi
+
+          echo "range=$RANGE" >> "$GITHUB_OUTPUT"
+          echo "previous_tag=$PREV_TAG" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "Release version: ${{ inputs.version }}"
+            echo "Current tag: $TAG"
+            if [ -n "$PREV_TAG" ]; then
+              echo "Previous tag: $PREV_TAG"
+            else
+              echo "Previous tag: <none>"
+            fi
+            echo
+            echo "Changed files:"
+            git diff --name-status "$RANGE"
+            echo
+            echo "Diffstat:"
+            git diff --stat "$RANGE"
+            echo
+            echo "Commits:"
+            git log --reverse --format="- %h %an %ad" --date=short "$RANGE"
+            echo
+            echo "Patch excerpt:"
+          } > release-context.md
+
+          git diff --unified=1 "$RANGE" > release.patch
+          head -c 120000 release.patch >> release-context.md
+
+      - name: Generate baseline release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="v${{ inputs.version }}"
+          PREV_TAG="${{ steps.release_context.outputs.previous_tag }}"
+          if [ -n "$PREV_TAG" ]; then
+            gh api -X POST "repos/${{ github.repository }}/releases/generate-notes" \
+              -f tag_name="$TAG" \
+              -f previous_tag_name="$PREV_TAG" \
+              --jq .body > release-notes.auto.md
+          else
+            gh api -X POST "repos/${{ github.repository }}/releases/generate-notes" \
+              -f tag_name="$TAG" \
+              --jq .body > release-notes.auto.md
+          fi
+
+      - name: Rewrite release notes with AI
+        id: ai_notes
+        continue-on-error: true
+        uses: actions/ai-inference@v1
+        with:
+          model: openai/gpt-4o
+          max-tokens: 1500
+          prompt-file: .github/prompts/release-notes.prompt.yml
+          input: |
+            version: ${{ inputs.version }}
+            release_range: ${{ steps.release_context.outputs.range }}
+            previous_tag: ${{ steps.release_context.outputs.previous_tag }}
+          file_input: |
+            auto_notes: ./release-notes.auto.md
+            release_context: ./release-context.md
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="v${{ inputs.version }}"
+          RANGE="${{ steps.release_context.outputs.range }}"
+          NOTES_FILE="release-notes.auto.md"
+          FINAL_NOTES_FILE="release-notes.final.md"
+          AI_FILE="${{ steps.ai_notes.outputs.response-file }}"
+          if [ -n "$AI_FILE" ] && [ -s "$AI_FILE" ]; then
+            NOTES_FILE="$AI_FILE"
+          fi
+
+          validate_structured_notes() {
+            local f="$1"
+            local h1 h2 h3 h4
+
+            [ "$(grep -c '^## Highlights$' "$f" || true)" -eq 1 ] || return 1
+            [ "$(grep -c '^## Fixes$' "$f" || true)" -eq 1 ] || return 1
+            [ "$(grep -c '^## Compatibility and Risk$' "$f" || true)" -eq 1 ] || return 1
+            [ "$(grep -c '^## Full Changelog$' "$f" || true)" -eq 1 ] || return 1
+
+            h1="$(grep -n '^## Highlights$' "$f" | cut -d: -f1)"
+            h2="$(grep -n '^## Fixes$' "$f" | cut -d: -f1)"
+            h3="$(grep -n '^## Compatibility and Risk$' "$f" | cut -d: -f1)"
+            h4="$(grep -n '^## Full Changelog$' "$f" | cut -d: -f1)"
+            [ "$h1" -lt "$h2" ] && [ "$h2" -lt "$h3" ] && [ "$h3" -lt "$h4" ] || return 1
+
+            awk '
+              /^## / { section=$0; next }
+              /^- / { has_bullet[section]=1 }
+              END {
+                required[1]="## Highlights"
+                required[2]="## Fixes"
+                required[3]="## Compatibility and Risk"
+                required[4]="## Full Changelog"
+                for (i=1; i<=4; i++) {
+                  if (!has_bullet[required[i]]) exit 1
+                }
+              }
+            ' "$f"
+          }
+
+          if ! validate_structured_notes "$NOTES_FILE"; then
+            {
+              echo "## Highlights"
+              echo "- None."
+              echo
+              echo "## Fixes"
+              echo "- None."
+              echo
+              echo "## Compatibility and Risk"
+              echo "- No confirmed breaking changes."
+              echo "- Release range: $RANGE."
+              echo
+              echo "## Full Changelog"
+              echo "- Baseline notes generated by GitHub:"
+              echo
+              cat release-notes.auto.md
+            } > release-notes.fallback.md
+            NOTES_FILE="release-notes.fallback.md"
+          fi
+
+          # Enforce no-emoji release notes even if source inputs contain emoji.
+          if ! perl -CSDA -pe 's/\p{Extended_Pictographic}//g; s/\x{FE0F}//g; s/\x{200D}//g;' "$NOTES_FILE" > "$FINAL_NOTES_FILE"; then
+            cp "$NOTES_FILE" "$FINAL_NOTES_FILE"
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "$TAG" --notes-file "$FINAL_NOTES_FILE"
+          else
+            gh release create "$TAG" --title "$TAG" --notes-file "$FINAL_NOTES_FILE" --verify-tag
+          fi
