@@ -120,6 +120,14 @@ jobs:
               --jq .body > release-notes.auto.md
           fi
 
+      - name: Prepare AI prompt inputs
+        run: |
+          set -euo pipefail
+          # ai-inference templates file_input into .prompt.yml before YAML parsing.
+          # Prefix each line so multiline substitutions remain valid YAML block content.
+          sed 's/^/      /' release-notes.auto.md > release-notes.auto.indented.md
+          sed 's/^/      /' release-context.md > release-context.indented.md
+
       - name: Rewrite release notes with AI
         id: ai_notes
         continue-on-error: true
@@ -133,8 +141,8 @@ jobs:
             release_range: ${{ steps.release_context.outputs.range }}
             previous_tag: ${{ steps.release_context.outputs.previous_tag }}
           file_input: |
-            auto_notes: ./release-notes.auto.md
-            release_context: ./release-context.md
+            auto_notes: ./release-notes.auto.indented.md
+            release_context: ./release-context.indented.md
 
       - name: Create or update GitHub release
         env:
