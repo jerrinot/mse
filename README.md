@@ -22,7 +22,15 @@ MSE implements Maven's `EventSpy` API. When activated, it:
 
 ## Installation
 
-Create `.mvn/extensions.xml` in your project root:
+Run the installer plugin in your project root:
+
+```
+mvn info.jerrinot:mse-maven-plugin:install
+```
+
+This creates `.mvn/extensions.xml` with the MSE extension entry. Maven downloads it automatically on the next build.
+
+Alternatively, create `.mvn/extensions.xml` manually:
 
 ```xml
 <extensions>
@@ -34,7 +42,11 @@ Create `.mvn/extensions.xml` in your project root:
 </extensions>
 ```
 
-Maven downloads the extension automatically on the next build.
+To uninstall:
+
+```
+mvn info.jerrinot:mse-maven-plugin:uninstall
+```
 
 ## Usage
 
