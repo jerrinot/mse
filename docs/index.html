@@ -444,7 +444,7 @@
       <h1>Machine-readable Maven output.<br><span class="accent">Structured failure details.</span></h1>
       <p>
         A Maven core extension that suppresses most default lifecycle logging
-        when activated and emits compact <code>MSE:</code> lines for build
+        when activated and emits compact output with build
         status, test results, and compiler diagnostics.
       </p>
       <div class="hero-actions">
@@ -589,8 +589,10 @@
           <div class="step-num">2</div>
           <div class="step-content">
             <h3>Run your build with MSE</h3>
-            <p>Activate with a system property or environment variable. That's it.</p>
+            <p>Activate with a system property:</p>
             <div class="code-block"><span class="prompt">$ </span>mvn -Dmse clean verify</div>
+            <p style="margin-top: 10px;">Or with an environment variable:</p>
+            <div class="code-block"><span class="prompt">$ </span>MSE_ACTIVE=true mvn clean verify</div>
           </div>
         </div>
 
