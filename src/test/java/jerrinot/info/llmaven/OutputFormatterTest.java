@@ -61,7 +61,7 @@ class OutputFormatterTest {
         state.accumulateTests(new TestSummary(50, 0, 0, 2, Collections.<TestFailure>emptyList()));
         formatter.emitOk(state);
         String line = output().trim();
-        assertTrue(line.startsWith("MSE:OK modules=3 tests=48/50 time="));
+        assertTrue(line.startsWith("MSE:OK modules=3 passed=48 failed=0 errors=0 skipped=2 time="));
         assertTrue(line.endsWith("s"));
         // Verify the time value is within expected range (9-11 seconds)
         long time = extractTimeSeconds(line);
@@ -127,7 +127,7 @@ class OutputFormatterTest {
         state.moduleSucceeded();
         formatter.emitBuildFailed(state);
         String line = output().trim();
-        assertTrue(line.startsWith("MSE:BUILD_FAILED failed=1 modules=5 tests=97/100 time="));
+        assertTrue(line.startsWith("MSE:BUILD_FAILED failed=1 modules=5 passed=97 failed=2 errors=1 skipped=0 time="));
         assertTrue(line.endsWith("s"));
         // Verify the time value is within expected range (29-31 seconds)
         long time = extractTimeSeconds(line);
@@ -172,7 +172,7 @@ class OutputFormatterTest {
         BuildState state = new BuildState(1, System.currentTimeMillis());
         formatter.emitOk(state);
         String line = output().trim();
-        assertTrue(line.contains("tests=0/0"), "Should show 0/0 when no tests accumulated");
+        assertTrue(line.contains("passed=0 failed=0 errors=0 skipped=0"), "Should show all zero counts");
         assertTrue(line.startsWith("MSE:OK modules=1"));
     }
 
@@ -182,7 +182,7 @@ class OutputFormatterTest {
         state.moduleFailed();
         formatter.emitBuildFailed(state);
         String line = output().trim();
-        assertTrue(line.contains("tests=0/0"), "Should show 0/0 when no tests accumulated");
+        assertTrue(line.contains("passed=0 failed=0 errors=0 skipped=0"), "Should show all zero counts");
         assertTrue(line.startsWith("MSE:BUILD_FAILED failed=1 modules=2"));
     }
 
@@ -262,7 +262,7 @@ class OutputFormatterTest {
         formatter.emitOk(state);
         String line = output().trim();
         // Verify the exact format prefix
-        assertTrue(line.startsWith("MSE:OK modules=3 tests=7/10 time="));
+        assertTrue(line.startsWith("MSE:OK modules=3 passed=7 failed=1 errors=0 skipped=2 time="));
         assertTrue(line.endsWith("s"));
     }
 
@@ -275,7 +275,7 @@ class OutputFormatterTest {
         state.accumulateTests(new TestSummary(20, 3, 2, 1, Collections.<TestFailure>emptyList()));
         formatter.emitBuildFailed(state);
         String line = output().trim();
-        assertTrue(line.startsWith("MSE:BUILD_FAILED failed=2 modules=4 tests=14/20 time="));
+        assertTrue(line.startsWith("MSE:BUILD_FAILED failed=2 modules=4 passed=14 failed=3 errors=2 skipped=1 time="));
         assertTrue(line.endsWith("s"));
     }
 

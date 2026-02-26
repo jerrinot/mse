@@ -26,9 +26,11 @@ class OutputFormatter {
     }
 
     public void emitOk(BuildState state) {
-        out.println("MSE:OK modules=" + state.getTotalModules()
-                + " tests=" + state.getTestPassed() + "/" + state.getTestTotal()
-                + " time=" + state.getElapsedSeconds() + "s");
+        StringBuilder sb = new StringBuilder("MSE:OK modules=");
+        sb.append(state.getTotalModules());
+        appendTestCounts(sb, state);
+        sb.append(" time=").append(state.getElapsedSeconds()).append('s');
+        out.println(sb);
     }
 
     public void emitFail(String pluginArtifactId, String goal,
@@ -42,7 +44,7 @@ class OutputFormatter {
             sb.append(" (").append(executionId).append(')');
         }
         sb.append(" @ ").append(moduleId);
-        out.println(sb.toString());
+        out.println(sb);
     }
 
     public void emitTestResults(TestSummary summary) {
@@ -75,7 +77,7 @@ class OutputFormatter {
             sb.append("\nMSE:TEST_TRUNCATED ").append(remaining)
                     .append(remaining == 1 ? " more failure not shown" : " more failures not shown");
         }
-        out.println(sb.toString());
+        out.println(sb);
     }
 
     public void emitCompilerErrors(List<CompilerError> errors) {
@@ -95,19 +97,26 @@ class OutputFormatter {
             sb.append("\nMSE:ERR_TRUNCATED ").append(remaining)
                     .append(remaining == 1 ? " more error not shown" : " more errors not shown");
         }
-        out.println(sb.toString());
+        out.println(sb);
     }
 
     public void emitBuildFailed(BuildState state) {
         StringBuilder sb = new StringBuilder("MSE:BUILD_FAILED failed=");
         sb.append(state.getFailedModules())
-                .append(" modules=").append(state.getTotalModules())
-                .append(" tests=").append(state.getTestPassed()).append('/').append(state.getTestTotal());
+                .append(" modules=").append(state.getTotalModules());
+        appendTestCounts(sb, state);
         if (state.getCompilerErrors() > 0) {
             sb.append(" compiler_errors=").append(state.getCompilerErrors());
         }
         sb.append(" time=").append(state.getElapsedSeconds()).append('s');
-        out.println(sb.toString());
+        out.println(sb);
+    }
+
+    private void appendTestCounts(StringBuilder sb, BuildState state) {
+        sb.append(" passed=").append(state.getTestPassed())
+                .append(" failed=").append(state.getTestFailed())
+                .append(" errors=").append(state.getTestErrors())
+                .append(" skipped=").append(state.getTestSkipped());
     }
 
     public void emitPassthrough(String reason) {

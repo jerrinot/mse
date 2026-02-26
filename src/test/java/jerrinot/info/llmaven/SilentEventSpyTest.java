@@ -173,7 +173,7 @@ class SilentEventSpyTest {
         spy.onEvent(mockSessionEnded());
 
         String result = output();
-        assertTrue(result.contains("tests=1/1"));
+        assertTrue(result.contains("passed=1 failed=0 errors=0 skipped=0"));
     }
 
     @Test
@@ -262,7 +262,7 @@ class SilentEventSpyTest {
         spy.onEvent(mockSessionEnded());
 
         String result = output();
-        assertTrue(result.contains("tests=2/2"), "Both executions should be parsed: " + result);
+        assertTrue(result.contains("passed=2 failed=0 errors=0 skipped=0"), "Both executions should be parsed: " + result);
     }
 
     @Test
@@ -330,7 +330,7 @@ class SilentEventSpyTest {
 
         String result = output();
         // Should still get OK with zero tests since basedir was null
-        assertTrue(result.contains("MSE:OK modules=1 tests=0/0"));
+        assertTrue(result.contains("MSE:OK modules=1 passed=0 failed=0 errors=0 skipped=0"));
     }
 
     @Test
@@ -515,7 +515,7 @@ class SilentEventSpyTest {
 
         String result = output();
         assertFalse(result.contains("MSE:TESTS"), "No test results output for all-passing tests");
-        assertTrue(result.contains("MSE:OK modules=1 tests=3/3"));
+        assertTrue(result.contains("MSE:OK modules=1 passed=3 failed=0 errors=0 skipped=0"));
     }
 
     @Test
@@ -544,7 +544,7 @@ class SilentEventSpyTest {
         spy.onEvent(mockSessionEnded());
 
         String result = output();
-        assertTrue(result.contains("MSE:OK modules=1 tests=0/0"));
+        assertTrue(result.contains("MSE:OK modules=1 passed=0 failed=0 errors=0 skipped=0"));
     }
 
     @Test
@@ -744,7 +744,7 @@ class SilentEventSpyTest {
 
         String result = output();
         // 4 + 6 = 10 total tests, all passed
-        assertTrue(result.contains("MSE:OK modules=3 tests=10/10"),
+        assertTrue(result.contains("MSE:OK modules=3 passed=10 failed=0 errors=0 skipped=0"),
                 "Should accumulate tests from all modules: " + result);
     }
 
@@ -817,8 +817,8 @@ class SilentEventSpyTest {
         assertTrue(result.contains("MSE:TEST_FAIL com.example.IntegrationIT#testBad"),
                 "Failsafe test failure detail should be reported: " + result);
         // Total accumulated: 2 (surefire) + 3 (failsafe) = 5, passed = 4
-        assertTrue(result.contains("tests=4/5"),
-                "Total accumulated tests should be 5 with 4 passed: " + result);
+        assertTrue(result.contains("passed=4 failed=1 errors=0 skipped=0"),
+                "Total accumulated tests should show 4 passed and 1 failed: " + result);
     }
 
     @Test

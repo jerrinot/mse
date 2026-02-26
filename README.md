@@ -56,7 +56,7 @@ Successful build:
 
 ```
 MSE:SESSION_START modules=12 goals=clean,verify
-MSE:OK modules=12 tests=342/342 time=47s
+MSE:OK modules=12 passed=342 failed=0 errors=0 skipped=0 time=47s
 ```
 
 Test failure:
@@ -70,7 +70,7 @@ MSE:TEST_FAIL com.example.AppTest#testParseInput
 MSE:TEST_ERROR com.example.ServiceTest#testConnection
   java.net.ConnectException: Connection refused
   at com.example.ServiceTest.testConnection(ServiceTest.java:18)
-MSE:BUILD_FAILED failed=1 modules=12 tests=339/342 time=52s
+MSE:BUILD_FAILED failed=1 modules=12 passed=339 failed=2 errors=1 skipped=0 time=52s
 ```
 
 Compiler error:
@@ -79,7 +79,7 @@ Compiler error:
 MSE:FAIL maven-compiler-plugin:compile @ my-module
 MSE:ERR /src/main/java/com/example/App.java:10:15 cannot find symbol
 MSE:ERR /src/main/java/com/example/App.java:20:1 ';' expected
-MSE:BUILD_FAILED failed=1 modules=12 tests=0/0 compiler_errors=2 time=8s
+MSE:BUILD_FAILED failed=1 modules=12 passed=0 failed=0 errors=0 skipped=0 compiler_errors=2 time=8s
 ```
 
 Internal error (falls back to passthrough):
