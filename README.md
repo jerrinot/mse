@@ -5,8 +5,6 @@ machine-readable format. Designed for AI coding agents that operate within
 finite context windows, where thousands of lines of lifecycle ceremony waste
 tokens and bury actionable errors.
 
-Silent on success. Precise on failure.
-
 ## How it works
 
 MSE implements Maven's `EventSpy` API. When activated, it:
@@ -40,13 +38,19 @@ Maven downloads the extension automatically on the next build.
 
 ## Usage
 
-Activate with an environment variable:
+Activate with a system property or environment variable:
+
+```
+mvn -Dmse clean verify
+```
+
+or
 
 ```
 MSE_ACTIVE=true mvn clean verify
 ```
 
-Without `MSE_ACTIVE=true`, the extension is inert and produces no output.
+Without activation the extension is inert: Maven behaves as if it were not installed.
 
 ## Output format
 

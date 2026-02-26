@@ -209,7 +209,8 @@ public class SilentEventSpy extends AbstractEventSpy {
     }
 
     boolean isActivated() {
-        return "true".equalsIgnoreCase(System.getenv("MSE_ACTIVE"));
+        return System.getProperty("mse") != null
+                || "true".equalsIgnoreCase(System.getenv("MSE_ACTIVE"));
     }
 
     private boolean isRedirectEnabled() {
