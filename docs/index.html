@@ -560,7 +560,7 @@
         <div class="feature-card">
           <span class="feature-icon">&#x26A1;</span>
           <h3>Activation</h3>
-          <p>Pass <code>-Dmse</code> or set <code>MSE_ACTIVE=true</code>. Without activation, Maven behavior is unchanged.</p>
+          <p>Pass <code>-Dmse</code> or set <code>MSE_ACTIVE</code> with mode values: <code>strict</code>, <code>relaxed</code>, <code>off</code>. Without activation, Maven behavior is unchanged.</p>
         </div>
 
       </div>
@@ -590,10 +590,12 @@
           <div class="step-num">2</div>
           <div class="step-content">
             <h3>Run your build with MSE</h3>
-            <p>Activate with a system property:</p>
+            <p>Strict mode (default when enabled):</p>
             <div class="code-block"><span class="prompt">$ </span>mvn -Dmse clean verify</div>
+            <p style="margin-top: 10px;">Relaxed mode:</p>
+            <div class="code-block"><span class="prompt">$ </span>mvn -Dmse=relaxed clean verify</div>
             <p style="margin-top: 10px;">Or with an environment variable:</p>
-            <div class="code-block"><span class="prompt">$ </span>MSE_ACTIVE=true mvn clean verify</div>
+            <div class="code-block"><span class="prompt">$ </span>MSE_ACTIVE=relaxed mvn clean verify</div>
           </div>
         </div>
 

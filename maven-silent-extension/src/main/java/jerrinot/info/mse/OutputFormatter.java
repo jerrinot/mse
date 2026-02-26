@@ -13,6 +13,7 @@ class OutputFormatter {
 
     private static final int MAX_FAILURE_DETAILS = 10;
     private static final int MAX_COMPILER_ERRORS = 25;
+    private static final int MAX_GENERIC_FAILURE_LINES = 20;
 
     private final PrintStream out;
 
@@ -133,5 +134,32 @@ class OutputFormatter {
 
     public void emitPassthrough(String reason) {
         out.println("MSE:PASSTHROUGH " + reason);
+    }
+
+    public void emitFailureDetails(String details) {
+        if (details == null || details.trim().isEmpty()) return;
+
+        String[] lines = details.split("\\r?\\n");
+        StringBuilder sb = new StringBuilder();
+        int shown = 0;
+        int totalNonBlank = 0;
+
+        for (String line : lines) {
+            String normalized = line.replace('\t', ' ').stripTrailing();
+            if (normalized.trim().isEmpty()) continue;
+            totalNonBlank++;
+            if (shown >= MAX_GENERIC_FAILURE_LINES) continue;
+            if (shown > 0) sb.append('\n');
+            sb.append("MSE:DETAIL ").append(normalized);
+            shown++;
+        }
+
+        if (shown == 0) return;
+        if (totalNonBlank > shown) {
+            int remaining = totalNonBlank - shown;
+            sb.append("\nMSE:DETAIL_TRUNCATED ").append(remaining)
+                    .append(remaining == 1 ? " more line not shown" : " more lines not shown");
+        }
+        out.println(sb);
     }
 }

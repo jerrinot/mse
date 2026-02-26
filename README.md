@@ -50,19 +50,22 @@ mvn info.jerrinot:mse-maven-plugin:uninstall
 
 ## Usage
 
-Activate with a system property or environment variable:
+Activate with a system property or environment variable. Both accept modes:
 
 ```
-mvn -Dmse clean verify
+mvn -Dmse clean verify              # strict: logger=off + stdio redirected to build log
+mvn -Dmse=relaxed clean verify      # relaxed: logger=error + stdio restored after session end
+MSE_ACTIVE=relaxed mvn clean verify # same mode via env var
 ```
 
-or
+Mode values:
+- `strict`, `true`, empty value (`-Dmse`) => strict mode (`org.slf4j.simpleLogger.defaultLogLevel=off`)
+- `relaxed` => relaxed mode (`org.slf4j.simpleLogger.defaultLogLevel=error`)
+- `off`, `false`, `0` => disabled
 
-```
-MSE_ACTIVE=true mvn clean verify
-```
+If both are set, `-Dmse` takes precedence over `MSE_ACTIVE`.
 
-Without activation the extension is inert: Maven behaves as if it were not installed.
+Without activation (or with `off`) the extension is inert: Maven behaves as if it were not installed.
 
 ## Output format
 

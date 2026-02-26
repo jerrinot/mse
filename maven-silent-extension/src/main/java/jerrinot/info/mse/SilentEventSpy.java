@@ -10,11 +10,19 @@ import org.apache.maven.project.MavenProject;
 
 import javax.inject.Named;
 import javax.inject.Singleton;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.Locale;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,11 +31,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Named("silent-spy")
 @Singleton
 public class SilentEventSpy extends AbstractEventSpy {
+    enum ActivationMode {
+        OFF,
+        STRICT,
+        RELAXED
+    }
 
     private static final Set<String> TEST_PLUGINS = Set.of(
             "maven-surefire-plugin", "maven-failsafe-plugin");
     private static final String COMPILER_PLUGIN = "maven-compiler-plugin";
     private static final String REDIRECT_TEST_OUTPUT_PROP = "maven.test.redirectTestOutputToFile";
+    private static final int BUILD_LOG_TAIL_LINES = 200;
 
     private final ArtifactParser artifactParser = new ArtifactParser();
     private final OutputFormatter formatter;
@@ -35,6 +49,7 @@ public class SilentEventSpy extends AbstractEventSpy {
     private final AtomicBoolean active = new AtomicBoolean();
     private final AtomicBoolean loggingSuppressed = new AtomicBoolean();
     private final AtomicBoolean redirectFailed = new AtomicBoolean();
+    private volatile ActivationMode activationMode = ActivationMode.OFF;
     private volatile BuildState buildState;
     private final Set<String> parsedModules = ConcurrentHashMap.newKeySet();
     private final Set<File> reportsDirs = ConcurrentHashMap.newKeySet();
@@ -56,7 +71,8 @@ public class SilentEventSpy extends AbstractEventSpy {
 
     @Override
     public void init(Context context) throws Exception {
-        boolean activated = isActivated();
+        activationMode = resolveMode();
+        boolean activated = activationMode != ActivationMode.OFF;
         active.set(activated);
         if (activated) {
             try {
@@ -144,7 +160,7 @@ public class SilentEventSpy extends AbstractEventSpy {
         buildLogFile = null;
         formatter.emitPassthrough("build-log redirect failed: " + e.getMessage()
                 + ". Continuing with console output."
-                + " Set MSE_REDIRECT_STDIO=false to disable redirection.");
+                + " Set -Dmse=off (or MSE_ACTIVE=off) to disable MSE.");
     }
 
     private void restoreConsoleOutput() {
@@ -157,21 +173,29 @@ public class SilentEventSpy extends AbstractEventSpy {
     }
 
     private void resetSessionState() {
+        resetSessionState(true);
+    }
+
+    private void resetSessionState(boolean restoreConsole) {
         restoreTestOutput();
-        restoreConsoleOutput();
-        if (fileStream != null) {
-            fileStream.close();
-            fileStream = null;
+        if (restoreConsole) {
+            restoreConsoleOutput();
+            if (fileStream != null) {
+                fileStream.close();
+                fileStream = null;
+            }
+            buildLogFile = null;
         }
-        buildLogFile = null;
         parsedModules.clear();
         reportsDirs.clear();
         redirectFailed.set(false);
         previousRedirectTestOutput = null;
         session = null;
         buildState = null;
-        originalOut = null;
-        originalErr = null;
+        if (restoreConsole) {
+            originalOut = null;
+            originalErr = null;
+        }
     }
 
     /**
@@ -182,9 +206,13 @@ public class SilentEventSpy extends AbstractEventSpy {
      */
     private void suppressMavenLogging() {
         previousLogLevel = System.getProperty("org.slf4j.simpleLogger.defaultLogLevel");
-        System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "error");
+        System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", loggingLevelForMode(activationMode));
         resetSlf4j();
         loggingSuppressed.set(true);
+    }
+
+    static String loggingLevelForMode(ActivationMode mode) {
+        return mode == ActivationMode.STRICT ? "off" : "error";
     }
 
     private void restoreMavenLogging() {
@@ -223,13 +251,42 @@ public class SilentEventSpy extends AbstractEventSpy {
         ArtifactParser.clearThreadLocal();
     }
 
-    boolean isActivated() {
-        return System.getProperty("mse") != null
-                || "true".equalsIgnoreCase(System.getenv("MSE_ACTIVE"));
+    ActivationMode resolveMode() {
+        return resolveMode(System.getProperty("mse"), System.getenv("MSE_ACTIVE"));
     }
 
-    private boolean isRedirectEnabled() {
-        return !"false".equalsIgnoreCase(System.getenv("MSE_REDIRECT_STDIO"));
+    static ActivationMode resolveMode(String propertyValue, String envValue) {
+        if (propertyValue != null) {
+            return parseMode(propertyValue);
+        }
+        return parseMode(envValue);
+    }
+
+    static ActivationMode parseMode(String rawValue) {
+        if (rawValue == null) {
+            return ActivationMode.OFF;
+        }
+        String value = rawValue.trim().toLowerCase(Locale.ROOT);
+        if (value.isEmpty()
+                || "true".equals(value)
+                || "1".equals(value)
+                || "yes".equals(value)
+                || "on".equals(value)
+                || "strict".equals(value)) {
+            return ActivationMode.STRICT;
+        }
+        if ("relaxed".equals(value)) {
+            return ActivationMode.RELAXED;
+        }
+        if ("false".equals(value)
+                || "0".equals(value)
+                || "off".equals(value)
+                || "no".equals(value)
+                || "disabled".equals(value)) {
+            return ActivationMode.OFF;
+        }
+        // Backward-compatible default: any unknown explicit value still activates MSE.
+        return ActivationMode.STRICT;
     }
 
     @Override
@@ -283,7 +340,7 @@ public class SilentEventSpy extends AbstractEventSpy {
         suppressTestOutput();
         List<MavenProject> projects = session.getProjects();
         int moduleCount = projects != null ? projects.size() : 0;
-        if (isRedirectEnabled() && projects != null && !projects.isEmpty()) {
+        if (projects != null && !projects.isEmpty()) {
             redirectConsoleToFile(projects.get(0).getBasedir());
         }
         List<String> goals = session.getGoals();
@@ -338,6 +395,8 @@ public class SilentEventSpy extends AbstractEventSpy {
             parseAndAccumulateTests(project, mojo);
         } else if (isCompilerPlugin(mojo)) {
             parseAndEmitCompilerErrors(ee);
+        } else {
+            parseAndEmitFailureDetails(ee);
         }
     }
 
@@ -370,7 +429,36 @@ public class SilentEventSpy extends AbstractEventSpy {
         }
     }
 
+    private void parseAndEmitFailureDetails(ExecutionEvent ee) {
+        List<String> details = new ArrayList<>();
+        String output = extractFailureOutput(ee);
+        if (output != null && !output.trim().isEmpty()) {
+            details.add(output);
+        }
+
+        String buildLogHint = extractFailureHintFromBuildLog(buildLogFile);
+        if (buildLogHint != null && !buildLogHint.isEmpty()) {
+            boolean alreadyIncluded = false;
+            for (String detail : details) {
+                if (detail.contains(buildLogHint)) {
+                    alreadyIncluded = true;
+                    break;
+                }
+            }
+            if (!alreadyIncluded) {
+                details.add(buildLogHint);
+            }
+        }
+
+        if (details.isEmpty()) return;
+        formatter.emitFailureDetails(String.join("\n", details));
+    }
+
     static String extractCompilerOutput(ExecutionEvent ee) {
+        return extractFailureOutput(ee);
+    }
+
+    static String extractFailureOutput(ExecutionEvent ee) {
         Throwable cause = ee.getException();
         for (int depth = 0; cause != null && depth < 5; depth++) {
             String longMsg = getLongMessage(cause);
@@ -394,6 +482,51 @@ public class SilentEventSpy extends AbstractEventSpy {
         }
     }
 
+    static String extractFailureHintFromBuildLog(File logFile) {
+        if (logFile == null || !logFile.exists() || !logFile.isFile()) {
+            return null;
+        }
+        Deque<String> tail = new ArrayDeque<>();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                new FileInputStream(logFile), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                tail.addLast(line);
+                if (tail.size() > BUILD_LOG_TAIL_LINES) {
+                    tail.removeFirst();
+                }
+            }
+        } catch (Exception ignored) {
+            return null;
+        }
+
+        List<String> lines = new ArrayList<>(tail);
+        for (int i = lines.size() - 1; i >= 0; i--) {
+            String candidate = lines.get(i).trim();
+            if (looksLikeDiagnosticLine(candidate)) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
+    static boolean looksLikeDiagnosticLine(String line) {
+        if (line == null) return false;
+        String trimmed = line.trim();
+        if (trimmed.isEmpty()) return false;
+        if (trimmed.startsWith("at ") || trimmed.startsWith("...")) return false;
+        String lower = trimmed.toLowerCase(Locale.ROOT);
+        return trimmed.startsWith("(line ")
+                || lower.contains("parse error")
+                || lower.contains("cannot find symbol")
+                || lower.contains("error:")
+                || lower.contains("failed with message")
+                || lower.contains("not found")
+                || lower.contains("no such")
+                || lower.contains("syntax error")
+                || lower.contains("expected one of");
+    }
+
     private void handleSessionEnded() {
         try {
             formatter.emitTestOutputPaths(reportsDirs);
@@ -406,7 +539,8 @@ public class SilentEventSpy extends AbstractEventSpy {
                 formatter.emitOk(buildState);
             }
         } finally {
-            resetSessionState();
+            boolean keepRedirectForStrict = active.get() && activationMode == ActivationMode.STRICT;
+            resetSessionState(!keepRedirectForStrict);
         }
     }
 

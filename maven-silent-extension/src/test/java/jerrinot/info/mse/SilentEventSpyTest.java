@@ -49,6 +49,39 @@ class SilentEventSpyTest {
     }
 
     @Test
+    void parseModeRecognizesStrictAndRelaxedValues() {
+        assertEquals(SilentEventSpy.ActivationMode.STRICT, SilentEventSpy.parseMode("strict"));
+        assertEquals(SilentEventSpy.ActivationMode.STRICT, SilentEventSpy.parseMode("true"));
+        assertEquals(SilentEventSpy.ActivationMode.STRICT, SilentEventSpy.parseMode(""));
+        assertEquals(SilentEventSpy.ActivationMode.RELAXED, SilentEventSpy.parseMode("relaxed"));
+    }
+
+    @Test
+    void parseModeRecognizesOffValues() {
+        assertEquals(SilentEventSpy.ActivationMode.OFF, SilentEventSpy.parseMode((String) null));
+        assertEquals(SilentEventSpy.ActivationMode.OFF, SilentEventSpy.parseMode("off"));
+        assertEquals(SilentEventSpy.ActivationMode.OFF, SilentEventSpy.parseMode("false"));
+        assertEquals(SilentEventSpy.ActivationMode.OFF, SilentEventSpy.parseMode("0"));
+    }
+
+    @Test
+    void resolveModePrefersSystemPropertyOverEnvironment() {
+        assertEquals(SilentEventSpy.ActivationMode.RELAXED,
+                SilentEventSpy.resolveMode("relaxed", "strict"));
+        assertEquals(SilentEventSpy.ActivationMode.OFF,
+                SilentEventSpy.resolveMode("off", "strict"));
+        assertEquals(SilentEventSpy.ActivationMode.STRICT,
+                SilentEventSpy.resolveMode(null, "strict"));
+    }
+
+    @Test
+    void loggingLevelDependsOnMode() {
+        assertEquals("off", SilentEventSpy.loggingLevelForMode(SilentEventSpy.ActivationMode.STRICT));
+        assertEquals("error", SilentEventSpy.loggingLevelForMode(SilentEventSpy.ActivationMode.RELAXED));
+        assertEquals("error", SilentEventSpy.loggingLevelForMode(SilentEventSpy.ActivationMode.OFF));
+    }
+
+    @Test
     void sessionStartEmitsLine() throws Exception {
         ExecutionEvent event = mockSessionStarted(3, Arrays.asList("clean", "verify"));
         spy.onEvent(event);
@@ -1039,7 +1072,7 @@ class SilentEventSpyTest {
     }
 
     /**
-     * Test subclass that overrides activation to always be true.
+     * Test subclass that forces strict activation mode.
      */
     private static class TestableSilentEventSpy extends SilentEventSpy {
         TestableSilentEventSpy(PrintStream testOut) {
@@ -1047,14 +1080,13 @@ class SilentEventSpyTest {
         }
 
         @Override
-        boolean isActivated() {
-            return true;
+        ActivationMode resolveMode() {
+            return ActivationMode.STRICT;
         }
     }
 
     /**
-     * Test subclass that overrides activation to always be false,
-     * avoiding dependency on the external MSE_ACTIVE environment variable.
+     * Test subclass that forces MSE to be off, avoiding dependency on env vars.
      */
     private static class InactiveTestSpy extends SilentEventSpy {
         InactiveTestSpy(PrintStream testOut) {
@@ -1062,8 +1094,8 @@ class SilentEventSpyTest {
         }
 
         @Override
-        boolean isActivated() {
-            return false;
+        ActivationMode resolveMode() {
+            return ActivationMode.OFF;
         }
     }
 }

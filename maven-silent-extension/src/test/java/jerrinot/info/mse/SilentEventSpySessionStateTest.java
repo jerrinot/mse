@@ -83,6 +83,31 @@ class SilentEventSpySessionStateTest {
         assertNull(getField("session"));
     }
 
+    @Test
+    void sessionEndedInStrictModeKeepsConsoleRedirectUntilClose() throws Exception {
+        setField("buildState", new BuildState(1));
+        setField("activationMode", SilentEventSpy.ActivationMode.STRICT);
+        setField("buildLogFile", new File("target/mse-build.log"));
+        setField("fileStream", new PrintStream(new ByteArrayOutputStream(), true));
+        setField("originalOut", System.out);
+        setField("originalErr", System.err);
+
+        AtomicBoolean active = getField("active");
+        active.set(true);
+
+        try {
+            invokePrivate("handleSessionEnded");
+            assertNull(getField("buildState"));
+            assertNull(getField("session"));
+            assertNotNull(getField("buildLogFile"));
+            assertNotNull(getField("fileStream"));
+            assertNotNull(getField("originalOut"));
+            assertNotNull(getField("originalErr"));
+        } finally {
+            invokePrivate("resetSessionState");
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private <T> T getField(String name) throws Exception {
         Field f = SilentEventSpy.class.getDeclaredField(name);

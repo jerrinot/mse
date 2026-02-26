@@ -526,4 +526,29 @@ class OutputFormatterTest {
         assertFalse(result.contains("\r"),
                 "Carriage return characters should not appear in output");
     }
+
+    @Test
+    void emitFailureDetailsMultiLineSkipsBlankLines() {
+        formatter.emitFailureDetails("line 1\n\n  \nline 2");
+        String result = output();
+        assertTrue(result.contains("MSE:DETAIL line 1"));
+        assertTrue(result.contains("MSE:DETAIL line 2"));
+        assertFalse(result.contains("MSE:DETAIL  "));
+    }
+
+    @Test
+    void emitFailureDetailsTruncatesAfter20Lines() {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 1; i <= 23; i++) {
+            if (i > 1) sb.append('\n');
+            sb.append("line ").append(i);
+        }
+        formatter.emitFailureDetails(sb.toString());
+
+        String result = output();
+        assertTrue(result.contains("MSE:DETAIL line 1"));
+        assertTrue(result.contains("MSE:DETAIL line 20"));
+        assertFalse(result.contains("MSE:DETAIL line 21"));
+        assertTrue(result.contains("MSE:DETAIL_TRUNCATED 3 more lines not shown"));
+    }
 }
