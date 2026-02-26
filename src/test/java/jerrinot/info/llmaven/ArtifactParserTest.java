@@ -488,6 +488,39 @@ class ArtifactParserTest {
     }
 
     @Test
+    void parseCompilerOutputWindowsAbsolutePath() {
+        String output = "[ERROR] C:\\work\\project\\src\\main\\java\\com\\example\\App.java:[10,5] cannot find symbol";
+        List<CompilerError> errors = ArtifactParser.parseCompilerOutput(output);
+        assertEquals(1, errors.size());
+        assertEquals("C:\\work\\project\\src\\main\\java\\com\\example\\App.java", errors.get(0).getFile());
+        assertEquals(10, errors.get(0).getLine());
+        assertEquals(5, errors.get(0).getColumn());
+        assertEquals("cannot find symbol", errors.get(0).getMessage());
+    }
+
+    @Test
+    void parseCompilerOutputRelativePath() {
+        String output = "[ERROR] src/main/java/com/example/App.java:[7,3] ';' expected";
+        List<CompilerError> errors = ArtifactParser.parseCompilerOutput(output);
+        assertEquals(1, errors.size());
+        assertEquals("src/main/java/com/example/App.java", errors.get(0).getFile());
+        assertEquals(7, errors.get(0).getLine());
+        assertEquals(3, errors.get(0).getColumn());
+        assertEquals("';' expected", errors.get(0).getMessage());
+    }
+
+    @Test
+    void parseCompilerOutputPathWithSpaces() {
+        String output = "[ERROR] C:\\Users\\Jane Doe\\project\\src\\main\\java\\App.java:[3,1] incompatible types";
+        List<CompilerError> errors = ArtifactParser.parseCompilerOutput(output);
+        assertEquals(1, errors.size());
+        assertEquals("C:\\Users\\Jane Doe\\project\\src\\main\\java\\App.java", errors.get(0).getFile());
+        assertEquals(3, errors.get(0).getLine());
+        assertEquals(1, errors.get(0).getColumn());
+        assertEquals("incompatible types", errors.get(0).getMessage());
+    }
+
+    @Test
     void parseCompilerOutputMultipleErrors() {
         String output = "[ERROR] /src/App.java:[10,5] cannot find symbol\n"
                 + "[ERROR] /src/App.java:[20,1] ';' expected\n"
@@ -522,15 +555,15 @@ class ArtifactParserTest {
     }
 
     @Test
-    void parseCompilerOutputTruncatesAt25() {
+    void parseCompilerOutputDoesNotTruncate() {
         StringBuilder sb = new StringBuilder();
         for (int i = 1; i <= 30; i++) {
             sb.append("[ERROR] /src/App.java:[").append(i).append(",1] error ").append(i).append('\n');
         }
         List<CompilerError> errors = ArtifactParser.parseCompilerOutput(sb.toString());
-        assertEquals(25, errors.size());
+        assertEquals(30, errors.size());
         assertEquals(1, errors.get(0).getLine());
-        assertEquals(25, errors.get(24).getLine());
+        assertEquals(30, errors.get(29).getLine());
     }
 
     @Test

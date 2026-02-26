@@ -139,6 +139,7 @@ public class SilentEventSpy extends AbstractEventSpy {
         restoreConsoleOutput();
         if (fileStream != null) {
             fileStream.close();
+            fileStream = null;
         }
         buildLogFile = null;
         formatter.emitPassthrough("build-log redirect failed: " + e.getMessage()
@@ -153,6 +154,24 @@ public class SilentEventSpy extends AbstractEventSpy {
         if (originalErr != null) {
             System.setErr(originalErr);
         }
+    }
+
+    private void resetSessionState() {
+        restoreTestOutput();
+        restoreConsoleOutput();
+        if (fileStream != null) {
+            fileStream.close();
+            fileStream = null;
+        }
+        buildLogFile = null;
+        parsedModules.clear();
+        reportsDirs.clear();
+        redirectFailed.set(false);
+        previousRedirectTestOutput = null;
+        session = null;
+        buildState = null;
+        originalOut = null;
+        originalErr = null;
     }
 
     /**
@@ -196,12 +215,8 @@ public class SilentEventSpy extends AbstractEventSpy {
     @Override
     public void close() throws Exception {
         try {
-            restoreConsoleOutput();
-            if (fileStream != null) {
-                fileStream.close();
-            }
+            resetSessionState();
             restoreMavenLogging();
-            restoreTestOutput();
         } catch (Exception e) {
             // Best-effort: never let logging restoration break Maven's shutdown
         }
@@ -228,12 +243,8 @@ public class SilentEventSpy extends AbstractEventSpy {
         } catch (Exception e) {
             formatter.emitPassthrough(e.getClass().getSimpleName() + ": " + e.getMessage());
             active.set(false);
-            restoreConsoleOutput();
-            if (fileStream != null) {
-                fileStream.close();
-            }
+            resetSessionState();
             restoreMavenLogging();
-            restoreTestOutput();
         }
     }
 
@@ -267,6 +278,7 @@ public class SilentEventSpy extends AbstractEventSpy {
     }
 
     private void handleSessionStarted(ExecutionEvent ee) {
+        resetSessionState();
         session = ee.getSession();
         suppressTestOutput();
         List<MavenProject> projects = session.getProjects();
@@ -276,7 +288,6 @@ public class SilentEventSpy extends AbstractEventSpy {
         }
         List<String> goals = session.getGoals();
         buildState = new BuildState(moduleCount);
-        parsedModules.clear();
         formatter.emitSessionStart(moduleCount, goals);
     }
 
@@ -384,14 +395,18 @@ public class SilentEventSpy extends AbstractEventSpy {
     }
 
     private void handleSessionEnded() {
-        formatter.emitTestOutputPaths(reportsDirs);
-        if (buildLogFile != null && buildLogFile.exists()) {
-            formatter.emitBuildLog(buildLogFile);
-        }
-        if (buildState.isBuildFailed()) {
-            formatter.emitBuildFailed(buildState);
-        } else {
-            formatter.emitOk(buildState);
+        try {
+            formatter.emitTestOutputPaths(reportsDirs);
+            if (buildLogFile != null && buildLogFile.exists()) {
+                formatter.emitBuildLog(buildLogFile);
+            }
+            if (buildState.isBuildFailed()) {
+                formatter.emitBuildFailed(buildState);
+            } else {
+                formatter.emitOk(buildState);
+            }
+        } finally {
+            resetSessionState();
         }
     }
 

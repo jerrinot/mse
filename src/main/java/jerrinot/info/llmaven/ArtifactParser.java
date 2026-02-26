@@ -21,9 +21,8 @@ import java.util.regex.Pattern;
 class ArtifactParser {
 
     private static final int MAX_STACK_TRACE_LINES = 20;
-    private static final int MAX_COMPILER_ERRORS = 25;
     private static final Pattern COMPILER_ERROR_PATTERN = Pattern.compile(
-            "^\\s*(?:\\[ERROR]\\s+)?(/\\S+\\.java):\\[(\\d+),(\\d+)]\\s+(.+)$",
+            "^\\s*(?:\\[ERROR]\\s+)?(.+?\\.java):\\[(\\d+),(\\d+)]\\s+(.+)$",
             Pattern.MULTILINE);
 
     // ThreadLocal because DocumentBuilderFactory is not thread-safe; each thread gets its own instance.
@@ -50,7 +49,8 @@ class ArtifactParser {
             return errors;
         }
         Matcher m = COMPILER_ERROR_PATTERN.matcher(output);
-        while (m.find() && errors.size() < MAX_COMPILER_ERRORS) {
+        // Parse all matches; OutputFormatter owns display truncation and marker emission.
+        while (m.find()) {
             String file = m.group(1);
             int line = Integer.parseInt(m.group(2));
             int column = Integer.parseInt(m.group(3));

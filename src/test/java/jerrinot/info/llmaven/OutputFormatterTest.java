@@ -445,6 +445,23 @@ class OutputFormatterTest {
     }
 
     @Test
+    void parsedCompilerErrorsOver25EmitTruncationMarker() {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 1; i <= 30; i++) {
+            sb.append("[ERROR] /src/App.java:[").append(i).append(",1] error ").append(i).append('\n');
+        }
+
+        List<CompilerError> errors = ArtifactParser.parseCompilerOutput(sb.toString());
+        assertEquals(30, errors.size());
+
+        formatter.emitCompilerErrors(errors);
+        String result = output();
+        assertTrue(result.contains("MSE:ERR /src/App.java:25:1 error 25"));
+        assertFalse(result.contains("MSE:ERR /src/App.java:26:1 error 26"));
+        assertTrue(result.contains("MSE:ERR_TRUNCATED 5 more errors not shown"));
+    }
+
+    @Test
     void emitCompilerErrorsTruncationSingular() {
         List<CompilerError> errors = new ArrayList<>();
         for (int i = 1; i <= 26; i++) {
